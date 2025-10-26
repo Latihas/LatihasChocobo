@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using Dalamud.Game;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -28,12 +29,12 @@ public sealed class Plugin : IDalamudPlugin {
         InValid
     }
 
-    private const uint WM_KEYUP = 0x101;
-    private const uint WM_KEYDOWN = 0x100;
+    private const uint WM_KEYUP = 0x101, WM_KEYDOWN = 0x100;
+    private const int KC_A = 65, KC_D = 68, KC_W = 87, KC_SPACE = 32, KC_1 = 49;
     private static IntPtr mwh;
     private static bool isRunning;
     private static readonly Random _random = new();
-    internal static readonly Dictionary<uint, string> ObjectType = new() {
+    internal static readonly Dictionary<uint, string> GoodObjectType = new() {
         {
             2005024, "黄宝箱"
         }, {
@@ -44,7 +45,13 @@ public sealed class Plugin : IDalamudPlugin {
             2005041, "绿体力"
         }
     };
-
+    internal static readonly Dictionary<uint, string> BadObjectType = new() {
+        {
+            2005039, "紫减速"
+        }, {
+            2005040, "红眩晕"
+        }
+    };
 
     private static readonly Dictionary<int, long> PressTime = new();
     private readonly MainWindow _mainWindow;
@@ -93,7 +100,7 @@ public sealed class Plugin : IDalamudPlugin {
 
     public static Direction GetTargetSide(IGameObject target) {
         var player = ClientState.LocalPlayer!;
-        if (!ObjectType.ContainsKey(target.DataId)) return Direction.InValid;
+        if (!BadObjectType.ContainsKey(target.DataId) && !GoodObjectType.ContainsKey(target.DataId)) return Direction.InValid;
         var playerPos = player.Position;
         var targetPos = target.Position;
         var rotation = player.Rotation;
@@ -110,7 +117,7 @@ public sealed class Plugin : IDalamudPlugin {
         var crossProduct = forwardDir.X * toTargetDir.Y - forwardDir.Y * toTargetDir.X;
 
         var zDiff = targetPos.Y - playerPos.Y;
-        if (zDiff < -2 || !(dotProduct > 0)) return Direction.InValid;
+        if (zDiff < -4 || !(dotProduct > 0)) return Direction.InValid;
         var toTargetNormalized = toTargetDir.LengthSquared() > 0
             ? Vector2.Normalize(toTargetDir)
             : Vector2.Zero;
@@ -150,7 +157,7 @@ public sealed class Plugin : IDalamudPlugin {
                 var BaseComponentNode = _ActionBarUldManager.NodeList[i];
                 if ((int)BaseComponentNode->Type != 1005) continue;
                 var BaseComponentNodeUldManager = BaseComponentNode->GetComponent()->UldManager;
-                for (uint j = 0; j < BaseComponentNodeUldManager.NodeListCount; j++) {
+                for (var j = 0; j < BaseComponentNodeUldManager.NodeListCount; j++) {
                     var TextNode = BaseComponentNodeUldManager.NodeList[j];
                     if (TextNode->Type != NodeType.Text) continue;
                     if (TextNode->GetAsAtkTextNode()->NodeText.ToString() != "1") continue;
@@ -187,14 +194,46 @@ public sealed class Plugin : IDalamudPlugin {
         return false;
     }
 
-    private unsafe void Press(IFramework framework) {
+    private static unsafe void Click(AtkComponentButton* target, AtkUnitBase* addon) {
+        if (!target->IsEnabled || !target->AtkResNode->IsVisible()) return;
+        var btnRes = target->AtkComponentBase.OwnerNode->AtkResNode;
+        var evt = btnRes.AtkEventManager.Event;
+        addon->ReceiveEvent(evt->State.EventType, (int)evt->Param, btnRes.AtkEventManager.Event);
+        var resetEvt = btnRes.AtkEventManager.Event;
+        resetEvt->State.StateFlags = AtkEventStateFlags.None;
+        addon->ReceiveEvent(resetEvt->State.EventType, (int)resetEvt->Param, btnRes.AtkEventManager.Event);
+    }
+
+    private static unsafe void Press(IFramework framework) {
         if (!isRunning) return;
+        // End
+        try {
+            var ptr = GameGui.GetAddonByName("RaceChocoboResult");
+            if (ptr != IntPtr.Zero) {
+                var RaceChocoboResult = (AtkUnitBase*)ptr.Address;
+                var RaceChocoboResultUldManager = RaceChocoboResult->UldManager;
+                for (var i = 0; i < RaceChocoboResultUldManager.NodeListCount; i++) {
+                    var BaseComponentNode = RaceChocoboResultUldManager.NodeList[i];
+                    if ((int)BaseComponentNode->Type != 1001) continue;
+                    var ButtonComponentNode = BaseComponentNode->GetAsAtkComponentButton();
+                    Click(ButtonComponentNode, RaceChocoboResult);
+                }
+            }
+        }
+        catch (Exception e) {
+            Log.Warning(e.ToString());
+        }
+        // Race
         var speedHigh = false;
         try {
             var _RaceChocoboParameter = (AtkUnitBase*)GameGui.GetAddonByName("_RaceChocoboParameter").Address;
             var _RaceChocoboParameterUldManager = _RaceChocoboParameter->UldManager;
-            var _RaceChocoboParameterSpeedNode = _RaceChocoboParameterUldManager.NodeList[_RaceChocoboParameterUldManager.NodeListCount - 1];
-            speedHigh = _RaceChocoboParameterSpeedNode->IsVisible();
+            var _RaceChocoboParameterSpeedNode = _RaceChocoboParameterUldManager.NodeList[_RaceChocoboParameterUldManager.NodeListCount - 1]->GetAsAtkImageNode();
+            var texture = _RaceChocoboParameterSpeedNode->PartsList->Parts[_RaceChocoboParameterSpeedNode->PartId].UldAsset;
+            speedHigh = _RaceChocoboParameterSpeedNode->IsVisible() &&
+                        texture->AtkTexture.TextureType == TextureType.Resource &&
+                        texture->AtkTexture.Resource->TexFileResourceHandle->ResourceHandle.FileName.ToString() ==
+                        "ui/icon/180000/chs/180043_hr1.tex";
         }
         catch (Exception e) {
             Log.Warning(e.ToString());
@@ -212,34 +251,33 @@ public sealed class Plugin : IDalamudPlugin {
             SendMessage(mwh, WM_KEYUP, code, 0);
             Log.Warning($"WM_KEYUP: {code}");
         }
-        if (!speedHigh) TryPress(87);
+        if (!speedHigh) TryPress(KC_W);
         var maxDist = 114514f;
         IGameObject? target = null;
         foreach (var obj in Objects) {
             if (obj.ObjectKind != ObjectKind.EventObj) continue;
             var newdis = Vector3.Distance(ClientState.LocalPlayer!.Position, obj.Position);
-            if (newdis < maxDist) {
-                target = obj;
-                maxDist = newdis;
-            }
+            if (!(newdis < maxDist)) continue;
+            target = obj;
+            maxDist = newdis;
         }
         if (target == null) return;
         switch (GetTargetSide(target)) {
             case Direction.Left:
-                TryPress(65);
+                TryPress(BadObjectType.ContainsKey(target.DataId) ? KC_D : KC_A);
                 break;
             case Direction.Right:
-                TryPress(68);
+                TryPress(BadObjectType.ContainsKey(target.DataId) ? KC_A : KC_D);
                 break;
             case Direction.FrontUp:
-                TryPress(32);
+                TryPress(KC_SPACE);
                 break;
             case Direction.Front:
             case Direction.InValid:
             default:
                 break;
         }
-        if (Configuration.AutoUseItem && CanUseItem()) TryPress(49);
+        if (Configuration.AutoUseItem && CanUseItem()) TryPress(KC_1);
     }
 
     private static bool InRace() => ClientState.TerritoryType is 389 or 390 or 391;
@@ -250,6 +288,12 @@ public sealed class Plugin : IDalamudPlugin {
             isRunning = false;
             foreach (var code in PressTime.Keys)
                 SendMessage(mwh, WM_KEYUP, code, 0);
+        }
+        if (Configuration.AutoDuty && territory == Configuration.AutoDutyTerritory) {
+            Task.Run(async () => {
+                await Task.Delay(Configuration.AutoDutyWait * 1000);
+                ChatBox.SendMessage("/pdrduty r 随机赛道");
+            });
         }
     }
 
