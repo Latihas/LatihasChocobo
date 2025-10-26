@@ -1,0 +1,51 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Configuration>Release</Configuration>
+    <AssemblyName>LatihasChocobo</AssemblyName>
+    <TargetFramework>net9.0</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <Optimize>true</Optimize>
+    <OutputPath>bin</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <DebugSymbols>false</DebugSymbols>
+    <Nullable>enable</Nullable>
+    <DebugType>none</DebugType>
+    <NoWarn>CA1816</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup>
+    <LangVersion>Latest</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <XIVLauncherPath>$(userprofile)\AppData\Roaming\XIVLauncherCN</XIVLauncherPath>
+    <DalamudPath>$(XIVLauncherPath)\addon\Hooks\dev</DalamudPath>
+    <NoWarn>CA1416;</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Lumina">
+      <HintPath>$(DalamudPath)\Lumina.dll</HintPath>
+    </Reference>
+    <Reference Include="Lumina.Excel">
+      <HintPath>$(DalamudPath)\Lumina.Excel.dll</HintPath>
+    </Reference>
+    <Reference Include="Dalamud">
+      <HintPath>$(DalamudPath)\Dalamud.dll</HintPath>
+    </Reference>
+    <Reference Include="FFXIVClientStructs">
+      <HintPath>$(DalamudPath)\FFXIVClientStructs.dll</HintPath>
+    </Reference>
+    <Reference Include="ImGui.NET">
+      <HintPath>$(DalamudPath)\Dalamud.Bindings.ImGui.dll</HintPath>
+    </Reference>
+    <Reference Include="InteropGenerator.Runtime">
+      <HintPath>$(DalamudPath)\InteropGenerator.Runtime.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="LatihasChocobo.json" CopyToOutputDirectory="PreserveNewest"/>
+  </ItemGroup>
+  <Target Name="DeleteFiles" AfterTargets="Build">
+    <ItemGroup>
+      <FilesToDelete Include="$(OutputPath)/*" Exclude="$(OutputPath)/LatihasChocobo*"/>
+    </ItemGroup>
+    <Delete Files="@(FilesToDelete)"/>
+  </Target>
+</Project>
