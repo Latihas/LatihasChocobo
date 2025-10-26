@@ -11,7 +11,7 @@ namespace LatihasChocobo;
 public class MainWindow() : Window("LatihasChocobo") {
     public override void Draw() {
         if (ClientState.LocalPlayer is null) return;
-        if (ImGui.Checkbox("进入指定地点自动循环匹配", ref Configuration.AutoDuty)) {
+        if (ImGui.Checkbox("进入指定地点自动循环匹配(需要DR)", ref Configuration.AutoDuty)) {
             Configuration.Save();
             if (Configuration.AutoDuty) {
                 if (ClientState.TerritoryType == Configuration.AutoDutyTerritory)
