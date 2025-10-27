@@ -85,7 +85,7 @@ public sealed class Plugin : IDalamudPlugin {
     [PluginService] private static IObjectTable Objects { get; set; } = null!;
     [PluginService] internal static ISigScanner SigScanner { get; private set; } = null!;
     [PluginService] internal static IClientState ClientState { get; private set; } = null!;
-    [PluginService] private static IGameGui GameGui { get; set; } = null!;
+    [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
 
     public void Dispose() {
         WindowSystem.RemoveAllWindows();
@@ -115,7 +115,6 @@ public sealed class Plugin : IDalamudPlugin {
         );
         var dotProduct = forwardDir.X * toTargetDir.X + forwardDir.Y * toTargetDir.Y;
         var crossProduct = forwardDir.X * toTargetDir.Y - forwardDir.Y * toTargetDir.X;
-
         var zDiff = targetPos.Y - playerPos.Y;
         if (zDiff < -4 || !(dotProduct > 0)) return Direction.InValid;
         var toTargetNormalized = toTargetDir.LengthSquared() > 0
@@ -124,9 +123,9 @@ public sealed class Plugin : IDalamudPlugin {
         var cosTheta = Vector2.Dot(forwardDir, toTargetNormalized);
         cosTheta = Math.Clamp(cosTheta, -1f, 1f);
         var angleDeg = (float)(Math.Acos(cosTheta) * 180 / Math.PI);
-        if (distance < 8 && angleDeg < 30)
+        if (distance < 8 && angleDeg < 20)
             return zDiff > 2 ? Direction.FrontUp : Direction.Front;
-        if (distance < 15 && angleDeg < 20)
+        if (distance < 15 && angleDeg < 15)
             return Direction.Front;
         return crossProduct > 0 ? Direction.Right : Direction.Left;
     }
@@ -145,48 +144,84 @@ public sealed class Plugin : IDalamudPlugin {
         PressTime[code] = DateTime.Now.Ticks;
         if (!(percent > 100) && !(_random.NextDouble() * 100 < percent)) return;
         SendMessage(mwh, WM_KEYDOWN, code, 0);
-        Log.Warning($"WM_KEYDOWN: {code}");
+        Log.Info($"WM_KEYDOWN: {code}");
+    }
+
+    // internal static unsafe AtkResNode* FirstAtkUnitBaseByType(AtkUnitBase* root, int type) => FirstAtkUnitBaseByType(root->UldManager, type);
+    internal static unsafe AtkResNode* FirstAtkUnitBaseByType(AtkResNode* root, int type) {
+        try {
+            var prevNode = root->ChildNode;
+            while (prevNode != null) {
+                if ((int)prevNode->Type == type) return prevNode;
+                prevNode = prevNode->PrevSiblingNode;
+            }
+            throw new Exception($"Failed to find BaseComponentNode: {type}");
+        }
+        catch (Exception) {
+            var UldManager = root->GetComponent()->UldManager;
+            for (var i = 0; i < UldManager.NodeListCount; i++) {
+                var Node = UldManager.NodeList[i];
+                if ((int)Node->Type == type) return Node;
+            }
+            throw new Exception($"Failed to find BaseComponentNode: {type}");
+        }
+
+        // FirstAtkUnitBaseByType(root->GetComponent()->UldManager, type);
+    }
+
+    // internal static unsafe AtkResNode* FirstAtkUnitBaseByType(AtkUldManager UldManager, int type) {
+    //     // for (var i = 0; i < UldManager.NodeListCount; i++) {
+    //     //     var Node = UldManager.NodeList[i];
+    //     //     if ((int)Node->Type == type) return Node;
+    //     // }
+    //     // throw new Exception($"Failed to find BaseComponentNode: {type}");
+    //     
+    // }
+
+    // internal static unsafe List<AtkResNodeWrapper> AllAtkUnitBaseByType(AtkUnitBase* root, int type) => AllAtkUnitBaseByType(root->UldManager, type);
+
+    internal static unsafe List<AtkResNodeWrapper> AllAtkUnitBaseByType(AtkResNode* root, int type) {
+        List<AtkResNodeWrapper> result = [];
+
+        var prevNode = root->ChildNode;
+        while (prevNode != null) {
+            if ((int)prevNode->Type == type) result.Add(new AtkResNodeWrapper(prevNode));
+            prevNode = prevNode->PrevSiblingNode;
+        }
+        return result;
+    }
+
+    internal static unsafe List<AtkResNodeWrapper> AllAtkUnitBaseByType(AtkUnitBase* root, int type) =>
+        AllAtkUnitBaseByType(root->UldManager, type);
+
+
+    internal static unsafe List<AtkResNodeWrapper> AllAtkUnitBaseByType(AtkUldManager UldManager, int type) {
+        List<AtkResNodeWrapper> result = [];
+        for (var i = 0; i < UldManager.NodeListCount; i++) {
+            var Node = UldManager.NodeList[i];
+            if ((int)Node->Type == type) result.Add(new AtkResNodeWrapper(Node));
+        }
+        return result;
     }
 
     private static unsafe bool CanUseItem() {
         AtkImageNode* FinalImageNode = null;
         try {
             var _ActionBar = (AtkUnitBase*)GameGui.GetAddonByName("_ActionBar").Address;
-            var _ActionBarUldManager = _ActionBar->UldManager;
-            for (var i = 0; i < _ActionBarUldManager.NodeListCount; i++) {
-                var BaseComponentNode = _ActionBarUldManager.NodeList[i];
-                if ((int)BaseComponentNode->Type != 1005) continue;
-                var BaseComponentNodeUldManager = BaseComponentNode->GetComponent()->UldManager;
-                for (var j = 0; j < BaseComponentNodeUldManager.NodeListCount; j++) {
-                    var TextNode = BaseComponentNodeUldManager.NodeList[j];
-                    if (TextNode->Type != NodeType.Text) continue;
-                    if (TextNode->GetAsAtkTextNode()->NodeText.ToString() != "1") continue;
-                    for (var ix = 0; ix < BaseComponentNodeUldManager.NodeListCount; ix++) {
-                        var DragDropComponentNode = BaseComponentNodeUldManager.NodeList[ix];
-                        if ((int)DragDropComponentNode->Type != 1002) continue;
-                        var DragDropComponentNodeUldManager = DragDropComponentNode->GetComponent()->UldManager;
-                        for (var jx = 0; jx < DragDropComponentNodeUldManager.NodeListCount; jx++) {
-                            var IconComponentNode = DragDropComponentNodeUldManager.NodeList[jx];
-                            if ((int)IconComponentNode->Type != 1001) continue;
-                            var IconComponentNodeUldManager = IconComponentNode->GetComponent()->UldManager;
-                            for (var k = 0; k < IconComponentNodeUldManager.NodeListCount; k++) {
-                                var TmpFinalImageNode = IconComponentNodeUldManager.NodeList[k];
-                                if (TmpFinalImageNode->Type != NodeType.Image) continue;
-                                FinalImageNode = TmpFinalImageNode->GetAsAtkImageNode();
-                                // ImGui.Text($"{FinalImageNode->Type.ToString()},{FinalImageNode->MultiplyRed},{FinalImageNode->MultiplyGreen},{FinalImageNode->MultiplyBlue}");
-                                break;
-                            }
-                        }
-                        if (FinalImageNode != null) break;
-                    }
-                    if (FinalImageNode != null) break;
-                }
-                if (FinalImageNode != null) break;
+            foreach (var BaseComponentNodew in AllAtkUnitBaseByType(_ActionBar, 1005)) {
+                var BaseComponentNode = BaseComponentNodew.Node;
+                var TextNode = FirstAtkUnitBaseByType(BaseComponentNode, (int)NodeType.Text);
+                if (TextNode->GetAsAtkTextNode()->NodeText.ToString() != "1") continue;
+                var DragDropComponentNode = FirstAtkUnitBaseByType(BaseComponentNode, 1002);
+                var IconComponentNode = FirstAtkUnitBaseByType(DragDropComponentNode, 1001);
+                var TmpFinalImageNode = FirstAtkUnitBaseByType(IconComponentNode, (int)NodeType.Image);
+                FinalImageNode = TmpFinalImageNode->GetAsAtkImageNode();
+                break;
             }
             if (FinalImageNode == null) return false;
-            var texture = FinalImageNode->PartsList->Parts[FinalImageNode->PartId].UldAsset;
-            if (texture->AtkTexture.TextureType != TextureType.Resource) return false;
-            return texture->AtkTexture.Resource->TexFileResourceHandle->ResourceHandle.FileName.ToString() != "ui/icon/070000/070101_hr1.tex";
+            var texture = FinalImageNode->PartsList->Parts[FinalImageNode->PartId].UldAsset->AtkTexture;
+            if (texture.TextureType != TextureType.Resource) return false;
+            return texture.Resource->TexFileResourceHandle->ResourceHandle.FileName.ToString() != "ui/icon/070000/070101_hr1.tex";
         }
         catch (Exception e) {
             Log.Warning(e.ToString());
@@ -205,7 +240,7 @@ public sealed class Plugin : IDalamudPlugin {
     }
 
     private static unsafe void Press(IFramework framework) {
-        if (!isRunning) return;
+        if (!Configuration.Enabled || !isRunning) return;
         // End
         try {
             var ptr = GameGui.GetAddonByName("RaceChocoboResult");
@@ -249,9 +284,9 @@ public sealed class Plugin : IDalamudPlugin {
                      .Where(t => DateTime.Now.Ticks - t.time > PRESS_TIME)
                      .Select(t => t.t.code)) {
             SendMessage(mwh, WM_KEYUP, code, 0);
-            Log.Warning($"WM_KEYUP: {code}");
+            Log.Info($"WM_KEYUP: {code}");
         }
-        if (!speedHigh) TryPress(KC_W);
+        if (!speedHigh || _random.NextDouble() * 100 < Configuration.SpeedHighW) TryPress(KC_W);
         var maxDist = 114514f;
         IGameObject? target = null;
         foreach (var obj in Objects) {
@@ -283,16 +318,20 @@ public sealed class Plugin : IDalamudPlugin {
     private static bool InRace() => ClientState.TerritoryType is 389 or 390 or 391;
 
     private static void TerritoryChanged(ushort territory) {
-        if (InRace()) isRunning = true;
+        if (InRace())
+            Task.Run(async () => {
+                await Task.Delay(5000);
+                isRunning = true;
+            });
         else if (isRunning) {
             isRunning = false;
             foreach (var code in PressTime.Keys)
                 SendMessage(mwh, WM_KEYUP, code, 0);
         }
-        if (Configuration.AutoDuty && territory == Configuration.AutoDutyTerritory) {
+        if (Configuration.AutoDuty && Configuration.AutoDutyTerritory.Split('|').Contains(ClientState.TerritoryType.ToString())) {
             Task.Run(async () => {
                 await Task.Delay(Configuration.AutoDutyWait * 1000);
-                ChatBox.SendMessage("/pdrduty r 随机赛道");
+                if (Configuration.Enabled) await Framework.RunOnFrameworkThread(() => ChatBox.SendMessage("/pdrduty r 随机赛道"));
             });
         }
     }
@@ -317,5 +356,13 @@ public sealed class Plugin : IDalamudPlugin {
 
     private void OnCommand() {
         _mainWindow.Toggle();
+    }
+
+    internal class AtkResNodeWrapper {
+        public unsafe readonly AtkResNode* Node;
+
+        public unsafe AtkResNodeWrapper(AtkResNode* node) {
+            Node = node;
+        }
     }
 }

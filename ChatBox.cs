@@ -11,7 +11,6 @@ public static class ChatBox {
 
     public static unsafe void SendMessage(string message) {
         if (Plugin.ClientState.LocalPlayer is null) return;
-        if (message.StartsWith("/e ")) message = "/e [SkyEye]" + message[2..];
         _processChatBox ??= Marshal.GetDelegateForFunctionPointer<ProcessChatBoxDelegate>(Plugin.SigScanner.ScanText("48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 48 8B F2 48 8B F9 45 84 C9"));
         fixed (byte* ptr = Encoding.UTF8.GetBytes(message)) {
             _processChatBox(UIModule.Instance(), Utf8String.FromSequence(ptr), 0, 0);
