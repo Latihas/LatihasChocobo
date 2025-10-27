@@ -58,14 +58,19 @@ public class MainWindow() : Window("Chocobo=>CCB?") {
                             ChatBox.SendMessage(RequestDuty);
                     }
                 }
+                ImGui.SameLine();
+                if (ImGui.Button("立刻匹配")) ChatBox.SendMessage(RequestDuty);
                 if (ImGui.InputText("循环区域(用竖线|分隔)", ref Configuration.AutoDutyTerritory)) Configuration.Save();
                 if (ImGui.InputInt("循环间延迟(s)", ref Configuration.AutoDutyWait)) Configuration.Save();
                 ImGui.Text($"当前区域: {ClientState.TerritoryType}, 经验: {RaceChocoboManager.Instance()->ExperienceCurrent}/{RaceChocoboManager.Instance()->ExperienceMax}");
                 if (ImGui.InputInt("按键时长(ms)", ref Configuration.PressMs)) Configuration.Save();
                 if (ImGui.InputFloat("超速也加速概率", ref Configuration.SpeedHighW, 1)) Configuration.Save();
+                if (ImGui.Checkbox("低体力/路长禁用超速加速", ref Configuration.DisableSpeedUpWhenLowHP)) Configuration.Save();
+                if (ImGui.Checkbox("高体力/路长强制超速加速", ref Configuration.EnableSpeedUpWhenHighHP)) Configuration.Save();
                 if (ImGui.Checkbox("自动使用道具", ref Configuration.AutoUseItem)) Configuration.Save();
                 ImGui.Separator();
-                ImGui.Text($"可使用物品：{(canUseItem ? "是" : "否")}。超速：{(speedHigh ? "是" : "否")}");
+                ImGui.Text($"可使用物品：{(canUseItem ? "是" : "否")}。超速：{(speedHigh ? "是" : "否")}。L:{L}。H:{H}");
+                ImGui.Text($"体力：{HpPercent}/路程：{RacePercent}");
                 List<string[]> data = [];
                 foreach (var obj in GetEventObjects()) {
                     var name = "UNK";

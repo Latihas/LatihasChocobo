@@ -30,8 +30,6 @@ public sealed class Plugin : IDalamudPlugin {
         InValid
     }
 
-    private const uint WM_KEYUP = 0x101, WM_KEYDOWN = 0x100;
-    private const int KC_A = 65, KC_D = 68, KC_W = 87, KC_SPACE = 32, KC_1 = 49;
     private static IntPtr mwh;
     private static bool isRunning;
     private static readonly Random _random = new();
@@ -53,12 +51,10 @@ public sealed class Plugin : IDalamudPlugin {
             2005040, "红眩晕"
         }
     };
-
     private static readonly Dictionary<int, long> PressTime = new();
-
-    internal static bool speedHigh;
-
-    internal static bool canUseItem;
+    internal static bool speedHigh, canUseItem, L, H;
+    internal static float HpPercent;
+    internal static int RacePercent;
     private readonly MainWindow _mainWindow;
     // ReSharper disable once MemberCanBePrivate.Global
     public readonly WindowSystem WindowSystem = new("LatihasChocobo");
@@ -239,13 +235,8 @@ public sealed class Plugin : IDalamudPlugin {
             var ptr = GameGui.GetAddonByName("RaceChocoboResult");
             if (ptr != IntPtr.Zero) {
                 var RaceChocoboResult = (AtkUnitBase*)ptr.Address;
-                var RaceChocoboResultUldManager = RaceChocoboResult->UldManager;
-                for (var i = 0; i < RaceChocoboResultUldManager.NodeListCount; i++) {
-                    var BaseComponentNode = RaceChocoboResultUldManager.NodeList[i];
-                    if ((int)BaseComponentNode->Type != 1001) continue;
-                    var ButtonComponentNode = BaseComponentNode->GetAsAtkComponentButton();
-                    Click(ButtonComponentNode, RaceChocoboResult);
-                }
+                var ButtonComponentNode = FirstAtkUnitBaseByType(RaceChocoboResult->UldManager, 1001)->GetAsAtkComponentButton();
+                Click(ButtonComponentNode, RaceChocoboResult);
             }
         }
         catch (Exception e) {
@@ -262,11 +253,32 @@ public sealed class Plugin : IDalamudPlugin {
                         texture->AtkTexture.TextureType == TextureType.Resource &&
                         texture->AtkTexture.Resource->TexFileResourceHandle->ResourceHandle.FileName.ToString() ==
                         "ui/icon/180000/chs/180043_hr1.tex";
+            var CounterNode = FirstAtkUnitBaseByType(_RaceChocoboParameter->UldManager, (int)NodeType.Counter)->GetAsAtkCounterNode();
+            HpPercent = float.Parse(CounterNode->NodeText.ToString()[..^1]);
         }
         catch (Exception e) {
             Log.Warning(e.ToString());
         }
-        var notSpeedHigh = !speedHigh || _random.NextDouble() * 100 < Configuration.SpeedHighW;
+        try {
+            var found = false;
+            var _ToDoList = (AtkUnitBase*)GameGui.GetAddonByName("_ToDoList").Address;
+            foreach (var BaseComponentNode in AllAtkUnitBaseByType(_ToDoList, 1008)) {
+                foreach (var NodeText in AllAtkUnitBaseByType(BaseComponentNode.Node->GetComponent()->UldManager, (int)NodeType.Text)) {
+                    var str = NodeText.Node->GetAsAtkTextNode()->NodeText.ToString();
+                    if (!str.StartsWith("进度：")) continue;
+                    RacePercent = int.Parse(str[3..^1]);
+                    found = true;
+                    break;
+                }
+                if (found) break;
+            }
+        }
+        catch (Exception e) {
+            Log.Warning(e.ToString());
+        }
+        L = Configuration.DisableSpeedUpWhenLowHP && HpPercent < 100 - RacePercent;
+        H = Configuration.EnableSpeedUpWhenHighHP && HpPercent > 100 - RacePercent;
+        var notSpeedHigh = (!speedHigh || _random.NextDouble() * 100 < Configuration.SpeedHighW) && !L || H;
         foreach (var code in PressTime.Select(p => new {
                          p,
                          code = p.Key
