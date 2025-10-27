@@ -278,7 +278,7 @@ public sealed class Plugin : IDalamudPlugin {
         }
         L = Configuration.DisableSpeedUpWhenLowHP && HpPercent < 100 - RacePercent;
         H = Configuration.EnableSpeedUpWhenHighHP && HpPercent > 100 - RacePercent;
-        var notSpeedHigh = (!speedHigh || _random.NextDouble() * 100 < Configuration.SpeedHighW) && !L || H;
+        var notSpeedHigh = !speedHigh || _random.NextDouble() * 100 < Configuration.SpeedHighW && !L || H;
         foreach (var code in PressTime.Select(p => new {
                          p,
                          code = p.Key

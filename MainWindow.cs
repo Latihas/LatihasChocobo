@@ -29,6 +29,7 @@ public class MainWindow() : Window("Chocobo=>CCB?") {
     }
 
     private static void NewTable(string[] header, List<string[]> data) {
+        if (data.Count == 0) return;
         if (ImGui.BeginTable("Table", data[0].Length, ImGuiTableFlag)) {
             foreach (var item in header) ImGui.TableSetupColumn(item, ImGuiTableColumnFlags.WidthStretch);
             ImGui.TableHeadersRow();
