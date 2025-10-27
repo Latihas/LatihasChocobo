@@ -14,6 +14,7 @@ using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using static LatihasChocobo.Constant;
 
 namespace LatihasChocobo;
 
@@ -54,6 +55,10 @@ public sealed class Plugin : IDalamudPlugin {
     };
 
     private static readonly Dictionary<int, long> PressTime = new();
+
+    internal static bool speedHigh;
+
+    internal static bool canUseItem;
     private readonly MainWindow _mainWindow;
     // ReSharper disable once MemberCanBePrivate.Global
     public readonly WindowSystem WindowSystem = new("LatihasChocobo");
@@ -105,14 +110,8 @@ public sealed class Plugin : IDalamudPlugin {
         var targetPos = target.Position;
         var rotation = player.Rotation;
         var distance = Vector3.Distance(playerPos, targetPos);
-        var forwardDir = new Vector2(
-            (float)Math.Sin(rotation),
-            (float)Math.Cos(rotation)
-        );
-        var toTargetDir = new Vector2(
-            targetPos.X - playerPos.X,
-            targetPos.Z - playerPos.Z
-        );
+        var forwardDir = new Vector2((float)Math.Sin(rotation), (float)Math.Cos(rotation));
+        var toTargetDir = new Vector2(targetPos.X - playerPos.X, targetPos.Z - playerPos.Z);
         var dotProduct = forwardDir.X * toTargetDir.X + forwardDir.Y * toTargetDir.Y;
         var crossProduct = forwardDir.X * toTargetDir.Y - forwardDir.Y * toTargetDir.X;
         var zDiff = targetPos.Y - playerPos.Y;
@@ -149,26 +148,21 @@ public sealed class Plugin : IDalamudPlugin {
 
     // internal static unsafe AtkResNode* FirstAtkUnitBaseByType(AtkUnitBase* root, int type) => FirstAtkUnitBaseByType(root->UldManager, type);
     internal static unsafe AtkResNode* FirstAtkUnitBaseByType(AtkResNode* root, int type) {
-        try {
-            var prevNode = root->ChildNode;
-            while (prevNode != null) {
-                if ((int)prevNode->Type == type) return prevNode;
-                prevNode = prevNode->PrevSiblingNode;
-            }
-            throw new Exception($"Failed to find BaseComponentNode: {type}");
+        var prevNode = root->ChildNode;
+        while (prevNode != null) {
+            if ((int)prevNode->Type == type) return prevNode;
+            prevNode = prevNode->PrevSiblingNode;
         }
-        catch (Exception) {
-            var UldManager = root->GetComponent()->UldManager;
-            for (var i = 0; i < UldManager.NodeListCount; i++) {
-                var Node = UldManager.NodeList[i];
-                if ((int)Node->Type == type) return Node;
-            }
-            throw new Exception($"Failed to find BaseComponentNode: {type}");
-        }
-
-        // FirstAtkUnitBaseByType(root->GetComponent()->UldManager, type);
+        throw new Exception($"Failed to find BaseComponentNode: {type}");
     }
 
+    internal static unsafe AtkResNode* FirstAtkUnitBaseByType(AtkUldManager UldManager, int type) {
+        for (var i = 0; i < UldManager.NodeListCount; i++) {
+            var Node = UldManager.NodeList[i];
+            if ((int)Node->Type == type) return Node;
+        }
+        throw new Exception($"Failed to find BaseComponentNode: {type}");
+    }
     // internal static unsafe AtkResNode* FirstAtkUnitBaseByType(AtkUldManager UldManager, int type) {
     //     // for (var i = 0; i < UldManager.NodeListCount; i++) {
     //     //     var Node = UldManager.NodeList[i];
@@ -182,7 +176,6 @@ public sealed class Plugin : IDalamudPlugin {
 
     internal static unsafe List<AtkResNodeWrapper> AllAtkUnitBaseByType(AtkResNode* root, int type) {
         List<AtkResNodeWrapper> result = [];
-
         var prevNode = root->ChildNode;
         while (prevNode != null) {
             if ((int)prevNode->Type == type) result.Add(new AtkResNodeWrapper(prevNode));
@@ -210,11 +203,11 @@ public sealed class Plugin : IDalamudPlugin {
             var _ActionBar = (AtkUnitBase*)GameGui.GetAddonByName("_ActionBar").Address;
             foreach (var BaseComponentNodew in AllAtkUnitBaseByType(_ActionBar, 1005)) {
                 var BaseComponentNode = BaseComponentNodew.Node;
-                var TextNode = FirstAtkUnitBaseByType(BaseComponentNode, (int)NodeType.Text);
+                var TextNode = FirstAtkUnitBaseByType(BaseComponentNode->GetComponent()->UldManager, (int)NodeType.Text);
                 if (TextNode->GetAsAtkTextNode()->NodeText.ToString() != "1") continue;
-                var DragDropComponentNode = FirstAtkUnitBaseByType(BaseComponentNode, 1002);
-                var IconComponentNode = FirstAtkUnitBaseByType(DragDropComponentNode, 1001);
-                var TmpFinalImageNode = FirstAtkUnitBaseByType(IconComponentNode, (int)NodeType.Image);
+                var DragDropComponentNode = FirstAtkUnitBaseByType(BaseComponentNode->GetComponent()->UldManager, 1002);
+                var IconComponentNode = FirstAtkUnitBaseByType(DragDropComponentNode->GetComponent()->UldManager, 1001);
+                var TmpFinalImageNode = FirstAtkUnitBaseByType(IconComponentNode->GetComponent()->UldManager, (int)NodeType.Image);
                 FinalImageNode = TmpFinalImageNode->GetAsAtkImageNode();
                 break;
             }
@@ -259,7 +252,7 @@ public sealed class Plugin : IDalamudPlugin {
             Log.Warning(e.ToString());
         }
         // Race
-        var speedHigh = false;
+        speedHigh = false;
         try {
             var _RaceChocoboParameter = (AtkUnitBase*)GameGui.GetAddonByName("_RaceChocoboParameter").Address;
             var _RaceChocoboParameterUldManager = _RaceChocoboParameter->UldManager;
@@ -273,6 +266,7 @@ public sealed class Plugin : IDalamudPlugin {
         catch (Exception e) {
             Log.Warning(e.ToString());
         }
+        var notSpeedHigh = !speedHigh || _random.NextDouble() * 100 < Configuration.SpeedHighW;
         foreach (var code in PressTime.Select(p => new {
                          p,
                          code = p.Key
@@ -283,10 +277,11 @@ public sealed class Plugin : IDalamudPlugin {
                      })
                      .Where(t => DateTime.Now.Ticks - t.time > PRESS_TIME)
                      .Select(t => t.t.code)) {
+            if (notSpeedHigh && code == KC_W) continue;
             SendMessage(mwh, WM_KEYUP, code, 0);
             Log.Info($"WM_KEYUP: {code}");
         }
-        if (!speedHigh || _random.NextDouble() * 100 < Configuration.SpeedHighW) TryPress(KC_W);
+        if (notSpeedHigh) TryPress(KC_W);
         var maxDist = 114514f;
         IGameObject? target = null;
         foreach (var obj in Objects) {
@@ -297,22 +292,28 @@ public sealed class Plugin : IDalamudPlugin {
             maxDist = newdis;
         }
         if (target == null) return;
+        var isBad = BadObjectType.ContainsKey(target.DataId);
         switch (GetTargetSide(target)) {
             case Direction.Left:
-                TryPress(BadObjectType.ContainsKey(target.DataId) ? KC_D : KC_A);
+                SendMessage(mwh, WM_KEYUP, isBad ? KC_A : KC_D, 0);
+                TryPress(isBad ? KC_D : KC_A);
                 break;
             case Direction.Right:
-                TryPress(BadObjectType.ContainsKey(target.DataId) ? KC_A : KC_D);
+                SendMessage(mwh, WM_KEYUP, isBad ? KC_D : KC_A, 0);
+                TryPress(isBad ? KC_A : KC_D);
                 break;
             case Direction.FrontUp:
                 TryPress(KC_SPACE);
                 break;
             case Direction.Front:
+                if (isBad) TryPress(KC_SPACE);
+                break;
             case Direction.InValid:
             default:
                 break;
         }
-        if (Configuration.AutoUseItem && CanUseItem()) TryPress(KC_1);
+        canUseItem = CanUseItem();
+        if (Configuration.AutoUseItem && canUseItem) TryPress(KC_1);
     }
 
     private static bool InRace() => ClientState.TerritoryType is 389 or 390 or 391;
@@ -320,7 +321,7 @@ public sealed class Plugin : IDalamudPlugin {
     private static void TerritoryChanged(ushort territory) {
         if (InRace())
             Task.Run(async () => {
-                await Task.Delay(5000);
+                await Task.Delay(Configuration.AutoDutyWait * 1000);
                 isRunning = true;
             });
         else if (isRunning) {
@@ -331,13 +332,13 @@ public sealed class Plugin : IDalamudPlugin {
         if (Configuration.AutoDuty && Configuration.AutoDutyTerritory.Split('|').Contains(ClientState.TerritoryType.ToString())) {
             Task.Run(async () => {
                 await Task.Delay(Configuration.AutoDutyWait * 1000);
-                if (Configuration.Enabled) await Framework.RunOnFrameworkThread(() => ChatBox.SendMessage("/pdrduty r 随机赛道"));
+                if (Configuration.Enabled) await Framework.RunOnFrameworkThread(() => ChatBox.SendMessage(RequestDuty));
             });
         }
     }
 
     [DllImport("user32.dll")]
-    private static extern IntPtr FindWindowEx(IntPtr hWndParent, IntPtr hWndChildAfter, string lpszClass, string lpszWindow);
+    private static extern IntPtr FindWindowEx(IntPtr hWndParent, IntPtr hWndChildAfter, string lpszClass, string? lpszWindow);
 
     [DllImport("user32.dll")]
     private static extern int GetWindowThreadProcessId(IntPtr hWnd, out int lpdwProcessId);
@@ -354,9 +355,7 @@ public sealed class Plugin : IDalamudPlugin {
 
     private void OnCommand(string command, string args) => OnCommand();
 
-    private void OnCommand() {
-        _mainWindow.Toggle();
-    }
+    private void OnCommand() => _mainWindow.Toggle();
 
     internal class AtkResNodeWrapper {
         public unsafe readonly AtkResNode* Node;

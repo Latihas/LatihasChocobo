@@ -8,6 +8,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using static LatihasChocobo.Constant;
 using static LatihasChocobo.Plugin;
 
 namespace LatihasChocobo;
@@ -42,6 +43,7 @@ public class MainWindow() : Window("Chocobo=>CCB?") {
         }
     }
 
+    [SuppressMessage("ReSharper", "ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator")]
     public override unsafe void Draw() {
         if (ClientState.LocalPlayer is null) return;
         if (ImGui.BeginTabBar("tab")) {
@@ -53,7 +55,7 @@ public class MainWindow() : Window("Chocobo=>CCB?") {
                     Configuration.Save();
                     if (Configuration.AutoDuty) {
                         if (Configuration.AutoDutyTerritory.Split('|').Contains(ClientState.TerritoryType.ToString()))
-                            ChatBox.SendMessage("/pdrduty r 随机赛道");
+                            ChatBox.SendMessage(RequestDuty);
                     }
                 }
                 if (ImGui.InputText("循环区域(用竖线|分隔)", ref Configuration.AutoDutyTerritory)) Configuration.Save();
@@ -63,6 +65,7 @@ public class MainWindow() : Window("Chocobo=>CCB?") {
                 if (ImGui.InputFloat("超速也加速概率", ref Configuration.SpeedHighW, 1)) Configuration.Save();
                 if (ImGui.Checkbox("自动使用道具", ref Configuration.AutoUseItem)) Configuration.Save();
                 ImGui.Separator();
+                ImGui.Text($"可使用物品：{(canUseItem ? "是" : "否")}。超速：{(speedHigh ? "是" : "否")}");
                 List<string[]> data = [];
                 foreach (var obj in GetEventObjects()) {
                     var name = "UNK";
@@ -76,7 +79,7 @@ public class MainWindow() : Window("Chocobo=>CCB?") {
             });
             NewTab("背包", () => {
                 if (ImGui.InputInt("筛选星级(OR)", ref Configuration.CcbMaxStar)) Configuration.Save();
-                if (ImGui.InputText("筛选颜色(竖线|分隔)", ref Configuration.CcbColor)) Configuration.Save();
+                if (ImGui.InputText("筛选颜色(用竖线|隔开)", ref Configuration.CcbColor)) Configuration.Save();
                 List<string[]> data = [];
                 string? name = null;
                 string? color = null;
@@ -105,7 +108,7 @@ public class MainWindow() : Window("Chocobo=>CCB?") {
                             var BaseComponentNodeA = AllAtkUnitBaseByType(node.Node, 1004);
                             if (BaseComponentNodeA.Count != 5) continue;
                             foreach (var BaseComponentNode in BaseComponentNodeA) {
-                                var ResNode = FirstAtkUnitBaseByType(BaseComponentNode.Node, (int)NodeType.Res);
+                                var ResNode = FirstAtkUnitBaseByType(BaseComponentNode.Node->GetComponent()->UldManager, (int)NodeType.Res);
                                 var ndata = AllAtkUnitBaseByType(ResNode, (int)NodeType.Text);
                                 ndata.Reverse();
                                 var d = new string[3];
@@ -138,7 +141,7 @@ public class MainWindow() : Window("Chocobo=>CCB?") {
                     if (!isValid) break;
                 }
                 if (isValid) {
-                    var preserve = Configuration.CcbMaxStar <= maxcount || Configuration.CcbColor.Contains(color![3..]);
+                    var preserve = Configuration.CcbMaxStar <= maxcount || Configuration.CcbColor.Split('|').Contains(color![3..]);
                     NewTable(["属性", "雄星级", "雌星级"], data);
                     ImGui.Text(name);
                     ImGui.Text($"满星数量: {maxcount}, {color}");

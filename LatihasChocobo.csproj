@@ -20,12 +20,6 @@
     <NoWarn>CA1416;</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Lumina">
-      <HintPath>$(DalamudPath)\Lumina.dll</HintPath>
-    </Reference>
-    <Reference Include="Lumina.Excel">
-      <HintPath>$(DalamudPath)\Lumina.Excel.dll</HintPath>
-    </Reference>
     <Reference Include="Dalamud">
       <HintPath>$(DalamudPath)\Dalamud.dll</HintPath>
     </Reference>
