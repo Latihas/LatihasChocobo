@@ -8,7 +8,6 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using static LatihasChocobo.Constant;
 using static LatihasChocobo.Plugin;
 
 namespace LatihasChocobo;
@@ -52,15 +51,15 @@ public class MainWindow() : Window("Chocobo=>CCB?") {
                 if (ImGui.Checkbox("启用", ref Configuration.Enabled)) Configuration.Save();
                 ImGui.Separator();
                 if (!Configuration.Enabled) return;
-                if (ImGui.Checkbox("进入指定地点自动循环匹配(需要DR)", ref Configuration.AutoDuty)) {
+                if (ImGui.Checkbox("进入指定地点自动循环匹配", ref Configuration.AutoDuty)) {
                     Configuration.Save();
                     if (Configuration.AutoDuty) {
                         if (Configuration.AutoDutyTerritory.Split('|').Contains(ClientState.TerritoryType.ToString()))
-                            ChatBox.SendMessage(RequestDuty);
+                            RequestRace();
                     }
                 }
                 ImGui.SameLine();
-                if (ImGui.Button("立刻匹配")) ChatBox.SendMessage(RequestDuty);
+                if (ImGui.Button("立刻匹配")) RequestRace();
                 if (ImGui.InputText("循环区域(用竖线|分隔)", ref Configuration.AutoDutyTerritory)) Configuration.Save();
                 if (ImGui.InputInt("循环间延迟(s)", ref Configuration.AutoDutyWait)) Configuration.Save();
                 ImGui.Text($"当前区域: {ClientState.TerritoryType}, 经验: {RaceChocoboManager.Instance()->ExperienceCurrent}/{RaceChocoboManager.Instance()->ExperienceMax}");

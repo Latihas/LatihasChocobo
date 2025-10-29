@@ -13,6 +13,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Network;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using static LatihasChocobo.Constant;
 
@@ -55,6 +56,8 @@ public sealed class Plugin : IDalamudPlugin {
     internal static bool speedHigh, canUseItem, L, H;
     internal static float HpPercent;
     internal static int RacePercent;
+
+    private static SendPacketDelegate? SendPacket;
     private readonly MainWindow _mainWindow;
     // ReSharper disable once MemberCanBePrivate.Global
     public readonly WindowSystem WindowSystem = new("LatihasChocobo");
@@ -228,6 +231,23 @@ public sealed class Plugin : IDalamudPlugin {
         addon->ReceiveEvent(resetEvt->State.EventType, (int)resetEvt->Param, btnRes.AtkEventManager.Event);
     }
 
+    internal static void RequestRace() {
+        SendPacket ??= Marshal.GetDelegateForFunctionPointer<SendPacketDelegate>(SigScanner.ScanText("E8 ?? ?? ?? ?? 48 8B D6 48 8B CF E8 ?? ?? ?? ?? 48 8B 8C 24"));
+        unsafe {
+            fixed (byte* pCustomPacket = new byte[] {
+                       0xB2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+                   }) {
+                SendPacket(
+                    FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance()->NetworkModuleProxy,
+                    pCustomPacket,
+                    0,
+                    0
+                );
+            }
+        }
+    }
+
     private static unsafe void Press(IFramework framework) {
         if (!Configuration.Enabled || !isRunning) return;
         // End
@@ -344,7 +364,7 @@ public sealed class Plugin : IDalamudPlugin {
         if (Configuration.AutoDuty && Configuration.AutoDutyTerritory.Split('|').Contains(ClientState.TerritoryType.ToString())) {
             Task.Run(async () => {
                 await Task.Delay(Configuration.AutoDutyWait * 1000);
-                if (Configuration.Enabled) await Framework.RunOnFrameworkThread(() => ChatBox.SendMessage(RequestDuty));
+                if (Configuration.Enabled) await Framework.RunOnFrameworkThread(RequestRace);
             });
         }
     }
@@ -368,6 +388,8 @@ public sealed class Plugin : IDalamudPlugin {
     private void OnCommand(string command, string args) => OnCommand();
 
     private void OnCommand() => _mainWindow.Toggle();
+
+    private unsafe delegate bool SendPacketDelegate(NetworkModuleProxy* module, byte* packet, uint a3, uint a4);
 
     internal class AtkResNodeWrapper {
         public unsafe readonly AtkResNode* Node;
