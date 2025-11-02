@@ -87,7 +87,7 @@ public class MainWindow() : Window("Chocobo=>CCB?") {
                         name
                     ]);
                 }
-                NewTable(["状态", "距离", "X", "Y", "Z", "DataId", "名称"], data);
+                NewTable(["状态", "X", "Y", "Z", "距离", "DataId", "名称"], data);
             });
             NewTab("背包", () => {
                 if (ImGui.InputInt("筛选星级(OR)", ref Configuration.CcbMaxStar)) Configuration.Save();
