@@ -123,7 +123,7 @@ public sealed class Plugin : IDalamudPlugin {
         var angleDeg = (float)(Math.Acos(cosTheta) * 180 / Math.PI);
         if (distance < 8 && angleDeg < 20)
             return zDiff > 2 ? Direction.FrontUp : Direction.Front;
-        if (distance < 15 && angleDeg < 15)
+        if (distance < 15 && angleDeg < 15 && GoodObjectType.ContainsKey(target.DataId))
             return Direction.Front;
         return crossProduct > 0 ? Direction.Right : Direction.Left;
     }
@@ -286,7 +286,7 @@ public sealed class Plugin : IDalamudPlugin {
                 foreach (var NodeText in AllAtkUnitBaseByType(BaseComponentNode.Node->GetComponent()->UldManager, (int)NodeType.Text)) {
                     var str = NodeText.Node->GetAsAtkTextNode()->NodeText.ToString();
                     if (!str.StartsWith("进度：")) continue;
-                    RacePercent = int.Parse(str[3..^1]);
+                    RacePercent = 100 - int.Parse(str[3..^1]);
                     found = true;
                     break;
                 }
@@ -296,8 +296,8 @@ public sealed class Plugin : IDalamudPlugin {
         catch (Exception e) {
             Log.Warning(e.ToString());
         }
-        L = Configuration.DisableSpeedUpWhenLowHP && HpPercent < 100 - RacePercent;
-        H = Configuration.EnableSpeedUpWhenHighHP && HpPercent > 100 - RacePercent;
+        L = Configuration.DisableSpeedUpWhenLowHP && HpPercent < RacePercent;
+        H = Configuration.EnableSpeedUpWhenHighHP && HpPercent > RacePercent && RacePercent < 25;
         var notSpeedHigh = !speedHigh || _random.NextDouble() * 100 < Configuration.SpeedHighW && !L || H;
         foreach (var code in PressTime.Select(p => new {
                          p,

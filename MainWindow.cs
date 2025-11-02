@@ -14,6 +14,7 @@ namespace LatihasChocobo;
 
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 [SuppressMessage("ReSharper", "InvertIf")]
+[SuppressMessage("ReSharper", "SpecifyACultureInStringConversionExplicitly")]
 public class MainWindow() : Window("Chocobo=>CCB?") {
     private const ImGuiTableFlags ImGuiTableFlag = ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.RowBg;
 
@@ -66,21 +67,27 @@ public class MainWindow() : Window("Chocobo=>CCB?") {
                 if (ImGui.InputInt("按键时长(ms)", ref Configuration.PressMs)) Configuration.Save();
                 if (ImGui.InputFloat("超速也加速概率", ref Configuration.SpeedHighW, 1)) Configuration.Save();
                 if (ImGui.Checkbox("低体力/路长禁用超速加速", ref Configuration.DisableSpeedUpWhenLowHP)) Configuration.Save();
-                if (ImGui.Checkbox("高体力/路长强制超速加速", ref Configuration.EnableSpeedUpWhenHighHP)) Configuration.Save();
+                if (ImGui.Checkbox("高体力/路长强制超速加速(后25%)", ref Configuration.EnableSpeedUpWhenHighHP)) Configuration.Save();
                 if (ImGui.Checkbox("自动使用道具", ref Configuration.AutoUseItem)) Configuration.Save();
                 ImGui.Separator();
                 ImGui.Text($"可使用物品：{(canUseItem ? "是" : "否")}。超速：{(speedHigh ? "是" : "否")}。L:{L}。H:{H}");
-                ImGui.Text($"体力：{HpPercent}/路程：{RacePercent}");
+                ImGui.Text($"体力：{HpPercent}/剩余路程：{RacePercent}");
                 List<string[]> data = [];
                 foreach (var obj in GetEventObjects()) {
                     var name = "UNK";
                     if (BadObjectType.TryGetValue(obj.DataId, out var v1)) name = v1;
                     if (GoodObjectType.TryGetValue(obj.DataId, out var v2)) name = v2;
                     data.Add([
-                        GetTargetSide(obj).ToString(), ((int)Vector3.Distance(ClientState.LocalPlayer.Position, obj.Position)).ToString(), obj.DataId.ToString(), name
+                        GetTargetSide(obj).ToString(),
+                        obj.Position.X.ToString(),
+                        obj.Position.Y.ToString(),
+                        obj.Position.Z.ToString(),
+                        ((int)Vector3.Distance(ClientState.LocalPlayer.Position, obj.Position)).ToString(),
+                        obj.DataId.ToString(),
+                        name
                     ]);
                 }
-                NewTable(["状态", "距离", "DataId", "名称"], data);
+                NewTable(["状态", "距离", "X", "Y", "Z", "DataId", "名称"], data);
             });
             NewTab("背包", () => {
                 if (ImGui.InputInt("筛选星级(OR)", ref Configuration.CcbMaxStar)) Configuration.Save();
