@@ -49,7 +49,10 @@ public class MainWindow() : Window("Chocobo=>CCB?") {
         if (ClientState.LocalPlayer is null) return;
         if (ImGui.BeginTabBar("tab")) {
             NewTab("赛鸟", () => {
-                if (ImGui.Checkbox("启用", ref Configuration.Enabled)) Configuration.Save();
+                if (ImGui.Checkbox("启用", ref Configuration.Enabled)) {
+                    Configuration.Save();
+                    if (!Configuration.Enabled) isRunning = false;
+                }
                 ImGui.Separator();
                 if (!Configuration.Enabled) return;
                 if (ImGui.Checkbox("进入指定地点自动循环匹配", ref Configuration.AutoDuty)) {
@@ -69,21 +72,22 @@ public class MainWindow() : Window("Chocobo=>CCB?") {
                 if (ImGui.Checkbox("低体力/路长禁用超速加速", ref Configuration.DisableSpeedUpWhenLowHP)) Configuration.Save();
                 if (ImGui.Checkbox("高体力/路长强制超速加速(后25%)", ref Configuration.EnableSpeedUpWhenHighHP)) Configuration.Save();
                 if (ImGui.Checkbox("自动使用道具", ref Configuration.AutoUseItem)) Configuration.Save();
+                if (ImGui.Checkbox("满级模式", ref Configuration.MaxLevelMode)) Configuration.Save();
                 ImGui.Separator();
                 ImGui.Text($"可使用物品：{(canUseItem ? "是" : "否")}。超速：{(speedHigh ? "是" : "否")}。L:{L}。H:{H}");
                 ImGui.Text($"体力：{HpPercent}/剩余路程：{RacePercent}");
                 List<string[]> data = [];
                 foreach (var obj in GetEventObjects()) {
                     var name = "UNK";
-                    if (BadObjectType.TryGetValue(obj.DataId, out var v1)) name = v1;
-                    if (GoodObjectType.TryGetValue(obj.DataId, out var v2)) name = v2;
+                    if (BadObjectType.TryGetValue(obj.BaseId, out var v1)) name = v1;
+                    if (GoodObjectType.TryGetValue(obj.BaseId, out var v2)) name = v2;
                     data.Add([
                         GetTargetSide(obj).ToString(),
                         obj.Position.X.ToString(),
                         obj.Position.Y.ToString(),
                         obj.Position.Z.ToString(),
                         ((int)Vector3.Distance(ClientState.LocalPlayer.Position, obj.Position)).ToString(),
-                        obj.DataId.ToString(),
+                        obj.BaseId.ToString(),
                         name
                     ]);
                 }

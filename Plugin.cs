@@ -32,7 +32,7 @@ public sealed class Plugin : IDalamudPlugin {
     }
 
     private static IntPtr mwh;
-    private static bool isRunning;
+    internal static bool isRunning;
     private static readonly Random _random = new();
     internal static readonly Dictionary<uint, string> GoodObjectType = new() {
         {
@@ -58,6 +58,8 @@ public sealed class Plugin : IDalamudPlugin {
     internal static int RacePercent;
 
     private static SendPacketDelegate? SendPacket;
+
+    private static long LastPress2;
     private readonly MainWindow _mainWindow;
     // ReSharper disable once MemberCanBePrivate.Global
     public readonly WindowSystem WindowSystem = new("LatihasChocobo");
@@ -104,7 +106,7 @@ public sealed class Plugin : IDalamudPlugin {
 
     public static Direction GetTargetSide(IGameObject target) {
         var player = ClientState.LocalPlayer!;
-        if (!BadObjectType.ContainsKey(target.DataId) && !GoodObjectType.ContainsKey(target.DataId)) return Direction.InValid;
+        if (!BadObjectType.ContainsKey(target.BaseId) && !GoodObjectType.ContainsKey(target.BaseId)) return Direction.InValid;
         var playerPos = player.Position;
         var targetPos = target.Position;
         var rotation = player.Rotation;
@@ -121,9 +123,9 @@ public sealed class Plugin : IDalamudPlugin {
         var cosTheta = Vector2.Dot(forwardDir, toTargetNormalized);
         cosTheta = Math.Clamp(cosTheta, -1f, 1f);
         var angleDeg = (float)(Math.Acos(cosTheta) * 180 / Math.PI);
-        if (distance < 8 && angleDeg < 20)
+        if (distance < (Configuration.MaxLevelMode ? 13 : 8) && angleDeg < 20)
             return zDiff > 2 ? Direction.FrontUp : Direction.Front;
-        if (distance < 15 && angleDeg < 15 && GoodObjectType.ContainsKey(target.DataId))
+        if (distance < (Configuration.MaxLevelMode ? 20 : 15) && angleDeg < 15 && GoodObjectType.ContainsKey(target.BaseId))
             return Direction.Front;
         return crossProduct > 0 ? Direction.Right : Direction.Left;
     }
@@ -259,8 +261,8 @@ public sealed class Plugin : IDalamudPlugin {
                 Click(ButtonComponentNode, RaceChocoboResult);
             }
         }
-        catch (Exception e) {
-            Log.Warning(e.ToString());
+        catch (Exception) {
+            //ignored
         }
         // Race
         speedHigh = false;
@@ -296,6 +298,10 @@ public sealed class Plugin : IDalamudPlugin {
         catch (Exception e) {
             Log.Warning(e.ToString());
         }
+        if (Configuration.MaxLevelMode && DateTime.Now.Ticks - LastPress2 > 75000000) {
+            LastPress2 = DateTime.Now.Ticks;
+            TryPress(KC_2);
+        }
         L = Configuration.DisableSpeedUpWhenLowHP && HpPercent < RacePercent;
         H = Configuration.EnableSpeedUpWhenHighHP && HpPercent > RacePercent && RacePercent < 25;
         var notSpeedHigh = !speedHigh || _random.NextDouble() * 100 < Configuration.SpeedHighW && !L || H;
@@ -324,7 +330,7 @@ public sealed class Plugin : IDalamudPlugin {
             maxDist = newdis;
         }
         if (target == null) return;
-        var isBad = BadObjectType.ContainsKey(target.DataId);
+        var isBad = BadObjectType.ContainsKey(target.BaseId);
         switch (GetTargetSide(target)) {
             case Direction.Left:
                 SendMessage(mwh, WM_KEYUP, isBad ? KC_A : KC_D, 0);
