@@ -2,7 +2,7 @@
 	"Author": "Latihas",
 	"Name": "LatihasChocobo",
 	"InternalName": "LatihasChocobo",
-	"AssemblyVersion": "7.4.1.0",
+	"AssemblyVersion": "7.41.1.0",
 	"Description": "陆行鸟竞赛自动化",
 	"ApplicableVersion": "any",
 	"Tags": [],
@@ -18,5 +18,5 @@
 	"DownloadLinkInstall": "https://raw.githubusercontent.com/Latihas/dalamud-plugins/main/LatihasChocobo.zip",
 	"DownloadLinkTesting": "https://raw.githubusercontent.com/Latihas/dalamud-plugins/main/LatihasChocobo.zip",
 	"DownloadLinkUpdate": "https://raw.githubusercontent.com/Latihas/dalamud-plugins/main/LatihasChocobo.zip",
-	"ChangeLog": "支持7.41。有问题请提issue，开发者几乎不看Discord。"
+	"ChangeLog": "支持7.41p1。有问题请提issue，开发者几乎不看Discord。"
 }
