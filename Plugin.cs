@@ -12,7 +12,6 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Client.Network;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using static LatihasChocobo.Constant;
 
@@ -47,8 +46,6 @@ public sealed class Plugin : IDalamudPlugin {
 	internal static bool speedHigh, canUseItem, L, H;
 	internal static float HpPercent;
 	internal static int RacePercent;
-
-	private static SendPacketDelegate? SendPacket;
 
 	private static long LastPress2;
 	private readonly MainWindow _mainWindow;
@@ -223,22 +220,15 @@ public sealed class Plugin : IDalamudPlugin {
 		addon->ReceiveEvent(resetEvt->State.EventType, (int)resetEvt->Param, btnRes.AtkEventManager.Event);
 	}
 
-	internal static void RequestRace() {
-		SendPacket ??= Marshal.GetDelegateForFunctionPointer<SendPacketDelegate>(SigScanner.ScanText("E8 ?? ?? ?? ?? 48 8B D6 48 8B CF E8 ?? ?? ?? ?? 48 8B 8C 24"));
-		unsafe {
-			fixed (byte* pCustomPacket = new byte[] {
-				       OPCODE_DUTY_1, OPCODE_DUTY_2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12, 0x00, 0x00, 0x00,
-				       0x00, 0x00, 0x00,
-				       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-			       }) {
-				SendPacket(
-					FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance()->NetworkModuleProxy,
-					pCustomPacket,
-					0,
-					0
-				);
-			}
-		}
+	private delegate void RequestContentsFinderRouletteDelegate(ushort contentRouletteID, ref byte option);
+
+	private static RequestContentsFinderRouletteDelegate? RequestContentsFinderRoulette;
+
+	internal static unsafe void RequestRace() {
+		RequestContentsFinderRoulette ??= Marshal.GetDelegateForFunctionPointer<RequestContentsFinderRouletteDelegate>(SigScanner.ScanText("48 89 5C 24 ?? 57 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 84 24 ?? ?? ?? ?? 0F B6 F9 48 8B DA"));
+		var option = stackalloc byte[10];
+		option[1] = 1;
+		RequestContentsFinderRoulette(18, ref *option);
 	}
 
 	private static unsafe void Press(IFramework framework) {
@@ -382,8 +372,6 @@ public sealed class Plugin : IDalamudPlugin {
 	private void OnCommand(string command, string args) => OnCommand();
 
 	private void OnCommand() => _mainWindow.Toggle();
-
-	private unsafe delegate bool SendPacketDelegate(NetworkModuleProxy* module, byte* packet, uint a3, uint a4);
 
 	internal class AtkResNodeWrapper {
 		public unsafe readonly AtkResNode* Node;

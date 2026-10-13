@@ -16,5 +16,5 @@
 
 支持配种凭证筛选，看起来更方便
 
-如果我AFK了或者忘记更新了，你也可以直接修改Constant.cs中的OPCODE_DUTY(用任意抓包软件即可, 本人喜欢https:
+如果我AFK了或者忘记更新了，你也可以直接修改Constant.cs中的OPCODE_DUTY (用任意抓包软件即可, 本人喜欢https:
 //github.com/extrant/FFXIVNetworkPacketAnalysisTool),注意顺序,实际使用在Plugin.cs的RequestRace函数

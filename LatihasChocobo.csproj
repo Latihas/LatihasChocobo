@@ -1,17 +1,17 @@
 ﻿<Project Sdk="Dalamud.NET.Sdk/15.0.0">
-  <PropertyGroup>
-    <OutputPath>bin</OutputPath>
-  </PropertyGroup>
-  <PropertyGroup>
-    <Version>7.56.1.0</Version>
-    <RepoUrl>https://github.com/Latihas/LatihasChocobo</RepoUrl>
-    <Author>Latihas</Author>
-    <Name>LatihasChocobo</Name>
-    <Description>陆行鸟竞赛自动化</Description>
-    <Punchline>陆行鸟竞赛自动化</Punchline>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == ''">
-    <DalamudLibPath>$(appdata)\XIVLauncherCN\addon\Hooks\dev</DalamudLibPath>
-    <AssemblySearchPaths>$(AssemblySearchPaths);$(DalamudLibPath)</AssemblySearchPaths>
-  </PropertyGroup>
+	<PropertyGroup>
+		<OutputPath>bin</OutputPath>
+	</PropertyGroup>
+	<PropertyGroup>
+		<Version>7.57.0.0</Version>
+		<RepoUrl>https://github.com/Latihas/LatihasChocobo</RepoUrl>
+		<Author>Latihas</Author>
+		<Name>LatihasChocobo</Name>
+		<Description>陆行鸟竞赛自动化</Description>
+		<Punchline>陆行鸟竞赛自动化</Punchline>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(GITHUB_ACTIONS)' == ''">
+		<DalamudLibPath>$(appdata)\XIVLauncherCN\addon\Hooks\dev</DalamudLibPath>
+		<AssemblySearchPaths>$(AssemblySearchPaths);$(DalamudLibPath)</AssemblySearchPaths>
+	</PropertyGroup>
 </Project>
