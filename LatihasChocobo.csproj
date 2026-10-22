@@ -3,7 +3,7 @@
 		<OutputPath>bin</OutputPath>
 	</PropertyGroup>
 	<PropertyGroup>
-		<Version>7.57.0.1</Version>
+		<Version>7.57.0.2</Version>
 		<RepoUrl>https://github.com/Latihas/LatihasChocobo</RepoUrl>
 		<Author>Latihas</Author>
 		<Name>LatihasChocobo</Name>
