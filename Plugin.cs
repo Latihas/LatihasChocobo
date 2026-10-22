@@ -21,6 +21,7 @@ namespace LatihasChocobo;
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 public sealed class Plugin : IDalamudPlugin {
 	private const uint WMKEYUP = 0x101, WMKEYDOWN = 0x100;
+
 	internal enum Direction {
 		Left,
 		Right,
@@ -123,7 +124,7 @@ public sealed class Plugin : IDalamudPlugin {
 		return [
 			.. ObjectTable.Where(obj =>
 				Vector3.Distance(ObjectTable.LocalPlayer.Position, obj.Position) < 75
-				&& obj.ObjectKind == ObjectKind.EventObj
+				&& (obj.ObjectKind == ObjectKind.EventObj || IsMonster(obj))
 			)
 		];
 	}
@@ -302,15 +303,16 @@ public sealed class Plugin : IDalamudPlugin {
 		if (notSpeedHigh) TryPress(Configuration.KC_W);
 		var maxDist = 114514f;
 		IGameObject? target = null;
+
 		foreach (var obj in ObjectTable) {
-			if (obj.ObjectKind != ObjectKind.EventObj) continue;
+			if (obj.ObjectKind != ObjectKind.EventObj && !IsMonster(obj)) continue;
 			var newdis = Vector3.Distance(ObjectTable.LocalPlayer!.Position, obj.Position);
 			if (!(newdis < maxDist)) continue;
 			target = obj;
 			maxDist = newdis;
 		}
 		if (target == null) return;
-		var isBad = BadObjectType.ContainsKey(target.BaseId) || target.ObjectKind == ObjectKind.BattleNpc;
+		var isBad = BadObjectType.ContainsKey(target.BaseId) || IsMonster(target);
 		switch (GetTargetSide(target)) {
 			case Direction.Left:
 				SendMessage(mwh, WMKEYUP, isBad ? Configuration.KC_A : Configuration.KC_D, 0);
@@ -333,6 +335,8 @@ public sealed class Plugin : IDalamudPlugin {
 		canUseItem = CanUseItem();
 		if (Configuration.AutoUseItem && canUseItem) TryPress(Configuration.KC_1);
 	}
+
+	internal static bool IsMonster(IGameObject gameObject) => gameObject.ObjectKind == ObjectKind.BattleNpc && string.IsNullOrEmpty(gameObject.Name.ToString());
 
 	private static bool InRace() => ClientState.TerritoryType is 389 or 390 or 391;
 

@@ -55,16 +55,15 @@ internal class MainWindow() : Window("Chocobo=>CCB?") {
 				}
 				ImGui.Separator();
 				if (!Configuration.Enabled) return;
-				// 选项数组，索引 0~7 分别对应 RaceId 18~25
 				string[] raceOptions = [
-					"荒野大道", // 18
-					"太阳海岸", // 19
-					"恬静小路", // 20
-					"随机赛道", // 21
-					"荒野大道（无报酬）", // 22
-					"太阳海岸（无报酬）", // 23
-					"恬静小路（无报酬）", // 24
-					"随机赛道（无报酬）" // 25
+					"荒野大道",
+					"太阳海岸",
+					"恬静小路",
+					"随机赛道",
+					"荒野大道（无报酬）",
+					"太阳海岸（无报酬）",
+					"恬静小路（无报酬）",
+					"随机赛道（无报酬）"
 				];
 				var raceIndex = Configuration.RaceId - 18;
 				if (ImGui.Combo("选择副本", ref raceIndex, raceOptions, raceOptions.Length)) {
@@ -97,6 +96,7 @@ internal class MainWindow() : Window("Chocobo=>CCB?") {
 					var name = "UNK";
 					if (BadObjectType.TryGetValue(obj.BaseId, out var v1)) name = v1;
 					if (GoodObjectType.TryGetValue(obj.BaseId, out var v2)) name = v2;
+					if (IsMonster(obj)) name = "MONSTER";
 					data.Add([
 						GetTargetSide(obj).ToString(),
 						obj.Position.X.ToString(),
