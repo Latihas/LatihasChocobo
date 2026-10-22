@@ -13,7 +13,6 @@ using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using static LatihasChocobo.Constant;
 
 namespace LatihasChocobo;
 
@@ -21,7 +20,8 @@ namespace LatihasChocobo;
 [SuppressMessage("ReSharper", "AutoPropertyCanBeMadeGetOnly.Local")]
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 public sealed class Plugin : IDalamudPlugin {
-	public enum Direction {
+	private const uint WMKEYUP = 0x101, WMKEYDOWN = 0x100;
+	internal enum Direction {
 		Left,
 		Right,
 		Front,
@@ -50,7 +50,7 @@ public sealed class Plugin : IDalamudPlugin {
 	private static long LastPress2;
 	private readonly MainWindow _mainWindow;
 	// ReSharper disable once MemberCanBePrivate.Global
-	public readonly WindowSystem WindowSystem = new("LatihasChocobo");
+	internal readonly WindowSystem WindowSystem = new("LatihasChocobo");
 
 	public Plugin() {
 		Configuration = PluginInterface.GetPluginConfig() as MConfiguration ?? new MConfiguration();
@@ -92,9 +92,9 @@ public sealed class Plugin : IDalamudPlugin {
 	[DllImport("user32.dll")]
 	private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
-	public static Direction GetTargetSide(IGameObject target) {
+	internal static Direction GetTargetSide(IGameObject target) {
 		var player = ObjectTable.LocalPlayer!;
-		if (!BadObjectType.ContainsKey(target.BaseId) && !GoodObjectType.ContainsKey(target.BaseId)) return Direction.InValid;
+		if (!BadObjectType.ContainsKey(target.BaseId) && target.ObjectKind != ObjectKind.BattleNpc && !GoodObjectType.ContainsKey(target.BaseId)) return Direction.InValid;
 		var playerPos = player.Position;
 		var targetPos = target.Position;
 		var rotation = player.Rotation;
@@ -120,10 +120,12 @@ public sealed class Plugin : IDalamudPlugin {
 
 	internal static IGameObject[] GetEventObjects() {
 		if (ObjectTable.LocalPlayer is null) return [];
-		return ObjectTable.Where(obj =>
-			Vector3.Distance(ObjectTable.LocalPlayer.Position, obj.Position) < 75
-			&& obj.ObjectKind == ObjectKind.EventObj
-		).ToArray();
+		return [
+			.. ObjectTable.Where(obj =>
+				Vector3.Distance(ObjectTable.LocalPlayer.Position, obj.Position) < 75
+				&& obj.ObjectKind == ObjectKind.EventObj
+			)
+		];
 	}
 
 	private static void TryPress(int code, float percent = 1000) {
@@ -131,7 +133,7 @@ public sealed class Plugin : IDalamudPlugin {
 		if (DateTime.Now.Ticks - PressTime[code] <= PRESS_TIME) return;
 		PressTime[code] = DateTime.Now.Ticks;
 		if (!(percent > 100) && !(_random.NextDouble() * 100 < percent)) return;
-		SendMessage(mwh, WM_KEYDOWN, code, 0);
+		SendMessage(mwh, WMKEYDOWN, code, 0);
 		Log.Info($"WM_KEYDOWN: {code}");
 	}
 
@@ -228,10 +230,10 @@ public sealed class Plugin : IDalamudPlugin {
 		RequestContentsFinderRoulette ??= Marshal.GetDelegateForFunctionPointer<RequestContentsFinderRouletteDelegate>(SigScanner.ScanText("48 89 5C 24 ?? 57 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 84 24 ?? ?? ?? ?? 0F B6 F9 48 8B DA"));
 		var option = stackalloc byte[10];
 		option[1] = 1;
-		RequestContentsFinderRoulette(18, ref *option);
+		RequestContentsFinderRoulette(Configuration.RaceId, ref *option);
 	}
 
-	private static unsafe void Press(IFramework framework) {
+	private static unsafe void Press(IFramework _) {
 		if (!Configuration.Enabled || !isRunning) return;
 		// End
 		try {
@@ -242,7 +244,7 @@ public sealed class Plugin : IDalamudPlugin {
 				Click(ButtonComponentNode, RaceChocoboResult);
 			}
 		} catch (Exception) {
-			//ignored
+			//
 		}
 		// Race
 		speedHigh = false;
@@ -294,7 +296,7 @@ public sealed class Plugin : IDalamudPlugin {
 			         .Where(t => DateTime.Now.Ticks - t.time > PRESS_TIME)
 			         .Select(t => t.t.code)) {
 			if (notSpeedHigh && code == Configuration.KC_W) continue;
-			SendMessage(mwh, WM_KEYUP, code, 0);
+			SendMessage(mwh, WMKEYUP, code, 0);
 			Log.Info($"WM_KEYUP: {code}");
 		}
 		if (notSpeedHigh) TryPress(Configuration.KC_W);
@@ -308,14 +310,14 @@ public sealed class Plugin : IDalamudPlugin {
 			maxDist = newdis;
 		}
 		if (target == null) return;
-		var isBad = BadObjectType.ContainsKey(target.BaseId);
+		var isBad = BadObjectType.ContainsKey(target.BaseId) || target.ObjectKind == ObjectKind.BattleNpc;
 		switch (GetTargetSide(target)) {
 			case Direction.Left:
-				SendMessage(mwh, WM_KEYUP, isBad ? Configuration.KC_A : Configuration.KC_D, 0);
+				SendMessage(mwh, WMKEYUP, isBad ? Configuration.KC_A : Configuration.KC_D, 0);
 				TryPress(isBad ? Configuration.KC_D : Configuration.KC_A);
 				break;
 			case Direction.Right:
-				SendMessage(mwh, WM_KEYUP, isBad ? Configuration.KC_D : Configuration.KC_A, 0);
+				SendMessage(mwh, WMKEYUP, isBad ? Configuration.KC_D : Configuration.KC_A, 0);
 				TryPress(isBad ? Configuration.KC_A : Configuration.KC_D);
 				break;
 			case Direction.FrontUp:
@@ -343,7 +345,7 @@ public sealed class Plugin : IDalamudPlugin {
 		else if (isRunning) {
 			isRunning = false;
 			foreach (var code in PressTime.Keys)
-				SendMessage(mwh, WM_KEYUP, code, 0);
+				SendMessage(mwh, WMKEYUP, code, 0);
 		}
 		if (Configuration.AutoDuty && Configuration.AutoDutyTerritory.Split('|').Contains(ClientState.TerritoryType.ToString())) {
 			Task.Run(async () => {
@@ -364,7 +366,7 @@ public sealed class Plugin : IDalamudPlugin {
 		while (true) {
 			hwnd = FindWindowEx(IntPtr.Zero, hwnd, "FFXIVGAME", null);
 			if (hwnd == IntPtr.Zero) break;
-			GetWindowThreadProcessId(hwnd, out var pid);
+			_ = GetWindowThreadProcessId(hwnd, out var pid);
 			if (pid == Environment.ProcessId) break;
 		}
 	}
@@ -374,9 +376,9 @@ public sealed class Plugin : IDalamudPlugin {
 	private void OnCommand() => _mainWindow.Toggle();
 
 	internal class AtkResNodeWrapper {
-		public unsafe readonly AtkResNode* Node;
+		internal unsafe readonly AtkResNode* Node;
 
-		public unsafe AtkResNodeWrapper(AtkResNode* node) {
+		internal unsafe AtkResNodeWrapper(AtkResNode* node) {
 			Node = node;
 		}
 	}

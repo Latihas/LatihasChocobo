@@ -15,7 +15,7 @@ namespace LatihasChocobo;
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 [SuppressMessage("ReSharper", "InvertIf")]
 [SuppressMessage("ReSharper", "SpecifyACultureInStringConversionExplicitly")]
-public class MainWindow() : Window("Chocobo=>CCB?") {
+internal class MainWindow() : Window("Chocobo=>CCB?") {
 	private const ImGuiTableFlags ImGuiTableFlag = ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.RowBg;
 
 	private static readonly Vector4 green = new(0, 1, 0, 1),
@@ -55,6 +55,22 @@ public class MainWindow() : Window("Chocobo=>CCB?") {
 				}
 				ImGui.Separator();
 				if (!Configuration.Enabled) return;
+				// 选项数组，索引 0~7 分别对应 RaceId 18~25
+				string[] raceOptions = [
+					"荒野大道", // 18
+					"太阳海岸", // 19
+					"恬静小路", // 20
+					"随机赛道", // 21
+					"荒野大道（无报酬）", // 22
+					"太阳海岸（无报酬）", // 23
+					"恬静小路（无报酬）", // 24
+					"随机赛道（无报酬）" // 25
+				];
+				var raceIndex = Configuration.RaceId - 18;
+				if (ImGui.Combo("选择副本", ref raceIndex, raceOptions, raceOptions.Length)) {
+					Configuration.RaceId = (ushort)(raceIndex + 18);
+					Configuration.Save();
+				}
 				if (ImGui.Checkbox("进入指定地点自动循环匹配", ref Configuration.AutoDuty)) {
 					Configuration.Save();
 					if (Configuration.AutoDuty) {
